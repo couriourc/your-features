@@ -1,0 +1,44 @@
+name: CouriourC Vis Deployer
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+      - name: Install Module
+        uses: pnpm/action-setup@v2
+        env:
+          NODE_ENV: production
+        with:
+          version: 7.26.3
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+            - args: [--global, rollup, typescript]
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - uses: actions/cache@v3
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Install and Build
+        run: pnpm build
+      - name: Build and Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist
+        env:
+          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
+          BRANCH: gh-pages
